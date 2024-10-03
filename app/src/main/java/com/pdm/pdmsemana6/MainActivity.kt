@@ -127,6 +127,7 @@ class MainActivity : AppCompatActivity() {
                             for (c in I.cromosoma)
                             {
 
+
                             }
 
                             ActualizarImgCanvas()
