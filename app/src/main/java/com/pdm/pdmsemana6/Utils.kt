@@ -29,6 +29,15 @@ class Utils {
             imgCanvas.setImageBitmap(mBitmap)
             return Triple(mBitmap, mCanvas, mPaint)
         }
+        fun factorial(n: Int): Int {
+            require(n >= 0) { "n debbe ser positivo" }
+            return if (n <= 1) {
+                1
+            } else {
+                n * factorial(n - 1)
+            }
+        }
+
         fun arreglo_puntos(Pts : ArrayList<Ciudad>):IntArray{
             val salida = IntArray(2*Pts.size){it}
             var contador:Int = 0

@@ -130,7 +130,7 @@
                 android:layout_height="wrap_content"
                 android:backgroundTint="?attr/colorSecondaryContainer"
                 android:drawableEnd="@drawable/ic_play"
-                android:text="Buscar camino mas corto"
+                android:text="Volver a ejecutar algoritmo genetico"
                 android:textColor="@color/md_theme_secondary" />
         </LinearLayout>
 

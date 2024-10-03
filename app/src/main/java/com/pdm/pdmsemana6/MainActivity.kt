@@ -25,22 +25,9 @@ import com.pdm.pdmsemana6.Global.Companion.numGeneraciones
 import com.pdm.pdmsemana6.Global.Companion.probabilidad_mutacion
 import com.pdm.pdmsemana6.Global.Companion.tampoblacion
 import com.pdm.pdmsemana6.Utils.Companion.DibujarEje
+import com.pdm.pdmsemana6.Utils.Companion.factorial
 import com.pdm.pdmsemana6.databinding.ActivityMainBinding
-
-/*
-class MainActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
-    }
-}
-*/
+import kotlin.math.pow
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MAIN";
@@ -52,9 +39,9 @@ class MainActivity : AppCompatActivity() {
     private var Punto :Pair<Float?, Float?> = Pair(null, null)
     private val IndNodos: MutableList<TextView> = ArrayList()
     private val city_size = 40
+    private lateinit var mCurva: Curva
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -63,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         imgCanvas.post(Runnable {
             InicializarCanvas()
         })
-
+        mCurva = Curva()
         binding.btnAgregarNodo.setOnClickListener{
             if(Punto.first == null && Punto.second == null)
             {
@@ -98,58 +85,56 @@ class MainActivity : AppCompatActivity() {
             }
 
             ActualizarImgCanvas()
+            LlamarAPI()
         }
 
-        binding.btnEjecutar.setOnClickListener {
-            val requestData = RequestData(
-                listOf(
-                    mListaCiudades.size.toFloat(),
-                    tampoblacion.toFloat(),
-                    probabilidad_mutacion.toFloat(),
-                    numGeneraciones.toFloat()
-                ),
-                Utils.arreglo_puntos(mListaCiudades)
-            )
-            val call = RetrofitAGviajero.aGviajeroAPI.predict(requestData)
-            call.enqueue(object : Callback<ResponseData> {
-                override fun onResponse(
-                    call: Call<ResponseData>,
-                    response: Response<ResponseData>
-                ) {
-                    if (response.isSuccessful) {
-                        val responseData = response.body()
-                        responseData?.let {
-                            val I = Individuo()
-                            I.cromosoma = it.prediction.toIntArray()
-                            mMejorRespuesta = I
-                            Log.d(TAG, "onResponse: PREDICCION DE TAMAÑO: ${it.prediction.size}")
-                            Log.d(TAG, "onResponse: CROMOSOMA DE TAMAÑO: ${I.cromosoma.size}")
-                            for (c in I.cromosoma)
-                            {
-
-
-                            }
-
-                            ActualizarImgCanvas()
-
-                        }
-                    } else {
-                        val myToast =
-                            Toast.makeText(applicationContext, "Error1", Toast.LENGTH_LONG)
-                        myToast.show()
-                    }
-                }
-
-                override fun onFailure(call: Call<ResponseData>, t: Throwable) {
-                    var mensaje: String = t.message.toString()
-                    val myToast =
-                        Toast.makeText(applicationContext, "Error2:" + mensaje, Toast.LENGTH_LONG)
-                    myToast.show()
-                }
-            })
-        }
+        binding.btnEjecutar.setOnClickListener {LlamarAPI()}
 
     }
+    fun LlamarAPI()
+    {
+        if (Global.mListaCiudades.size < 4) return
+        val requestData = RequestData(
+            listOf(
+                mListaCiudades.size.toFloat(),
+                tampoblacion.toFloat(),
+                probabilidad_mutacion.toFloat(),
+                numGeneraciones.toFloat()
+            ),
+            Utils.arreglo_puntos(mListaCiudades)
+        )
+        val call = RetrofitAGviajero.aGviajeroAPI.predict(requestData)
+        call.enqueue(object : Callback<ResponseData> {
+            override fun onResponse(
+                call: Call<ResponseData>,
+                response: Response<ResponseData>
+            ) {
+                if (response.isSuccessful) {
+                    val responseData = response.body()
+                    responseData?.let {
+                        val I = Individuo()
+                        I.cromosoma = it.prediction.toIntArray()
+                        mMejorRespuesta = I
+                        ActualizarImgCanvas()
+
+                    }
+                } else {
+                    val myToast =
+                        Toast.makeText(applicationContext, "Error1", Toast.LENGTH_LONG)
+                    myToast.show()
+                }
+            }
+
+            override fun onFailure(call: Call<ResponseData>, t: Throwable) {
+                var mensaje: String = t.message.toString()
+                val myToast =
+                    Toast.makeText(applicationContext, "Error2:" + mensaje, Toast.LENGTH_LONG)
+                myToast.show()
+            }
+        })
+        mCurva.limpiar()
+    }
+
     fun ActualizarImgCanvas() {
 
         DibujarEje(imgCanvas, imgCanvas.height, imgCanvas.width)
@@ -205,9 +190,13 @@ class MainActivity : AppCompatActivity() {
         }
         if (mMejorRespuesta != null)
         {
-            mPaint.color = Color.BLACK
+            Log.d(TAG, "onResponse: CROMOSOMA DE TAMAÑO: ${mMejorRespuesta!!.cromosoma.size} => ${mMejorRespuesta!!.cromosoma.joinToString(" ")}")
+
+            mPaint.color = Color.GRAY
+            mPaint.strokeWidth = 1.5f
             for(i in 0..mMejorRespuesta!!.cromosoma.size - 2)
             {
+                Log.d(TAG, "ActualizarImgCanvas: $i con la ciudad ${mMejorRespuesta!!.cromosoma[i]}")
                 val C1 = Global.mListaCiudades[mMejorRespuesta!!.cromosoma[i]]
                 val C2 = Global.mListaCiudades[mMejorRespuesta!!.cromosoma[i + 1]]
                 val VDx = C2.x - C1.x
@@ -231,6 +220,64 @@ class MainActivity : AppCompatActivity() {
                 index += 1
             }
         }
+        mPaint.color = Color.BLACK
+        mPaint.strokeWidth = 4f
+
+        if(mMejorRespuesta != null)
+        {
+            val n = mMejorRespuesta!!.cromosoma.size - 1
+            val pasos = 50
+            if(mCurva.isActivo())
+            {
+                Log.d(TAG, "ActualizarPuntos: CURVA ACTIVA -> CARGANDO CURVA")
+                //Cargar curva
+                val lstPuntos = mCurva.getLstPuntos().toMutableList()
+                //Dibujar rectas
+                lstPuntos.add(0, Pair(mListaCiudades[mMejorRespuesta!!.cromosoma.first()].x, mListaCiudades[mMejorRespuesta!!.cromosoma.first()].y))
+                lstPuntos.add( Pair(mListaCiudades[mMejorRespuesta!!.cromosoma.last()].x, mListaCiudades[mMejorRespuesta!!.cromosoma.last()].y))
+                for(ndI in 0..lstPuntos.size - 2)
+                {
+                    mCanvas.drawLine(lstPuntos[ndI].first, lstPuntos[ndI].second, lstPuntos[ndI + 1].first, lstPuntos[ndI + 1].second, mPaint)
+                }
+            }
+            else
+            {
+                //Genera la lista de puntos por donde pasa la linea bezier
+                val lst = mMejorRespuesta!!.cromosoma
+                Log.d(TAG, "ActualizarPuntos: CURVA INACTIVA -> PREPARANDO CURVA CON ${lst.size} PUNTOS")
+                val lstPuntos: MutableList<Pair<Float, Float>> = ArrayList()
+                for (pI in 1..<pasos)
+                {
+                    val t =  pI/pasos.toFloat()
+                    var Psx = 0f
+                    var Psy = 0f
+                    for (i in 0..n)
+                    {
+                        val Cn_i = factorial(n) / (factorial(i) * factorial(n - i))
+                        //Log.d(TAG, "ActualizarPuntos: Comb ($i $n) es $Cn_i")
+                        Psx += Cn_i * mListaCiudades[lst[i]].x * ((1 - t).pow(n - i)) * (t.pow(i))
+                        Psy += Cn_i * mListaCiudades[lst[i]].y * ((1 - t).pow(n - i)) * (t.pow(i))
+                    }
+                    //Log.d(TAG, "ActualizarPuntos: PUNTO Bt = $Psx - $Psy")
+                    //mcanvas.drawCircle(Psx, Psy, 3f, mpaint)
+                    //Guardar curva
+                    lstPuntos.add(Pair(Psx, Psy))
+                }
+                //Guardar puntos
+                mCurva.setLstPuntos(lstPuntos)
+                //Dibujar rectas
+                lstPuntos.add(0, Pair(mListaCiudades[lst.first()].x, mListaCiudades[lst.first()].y))
+                lstPuntos.add(Pair(mListaCiudades[lst.last()].x, mListaCiudades[lst.last()].y))
+                for(ndI in 0..lstPuntos.size - 2)
+                {
+                    mCanvas.drawLine(lstPuntos[ndI].first, lstPuntos[ndI].second, lstPuntos[ndI + 1].first, lstPuntos[ndI + 1].second, mPaint)
+                }
+
+            }
+
+
+        }
+
 
     }
     @SuppressLint("ClickableViewAccessibility")
